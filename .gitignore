@@ -1,0 +1,324 @@
+# 3CX n8n Integration - Git Ignore File
+
+# =============================================================================
+# Node.js Dependencies
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# =============================================================================
+# Build Output
+# =============================================================================
+dist/
+build/
+out/
+.next/
+.nuxt/
+.vuepress/dist/
+
+# =============================================================================
+# Environment and Configuration
+# =============================================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Local configuration files
+config.local.json
+config.*.local.json
+
+# =============================================================================
+# Credentials and Secrets
+# =============================================================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+credentials/
+.secrets/
+.credentials/
+
+# 3CX specific credentials
+3cx-credentials.json
+.3cx-config
+*.3cx-secret
+
+# =============================================================================
+# Logs
+# =============================================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# =============================================================================
+# Test Coverage
+# =============================================================================
+coverage/
+*.lcov
+nyc_output/
+.nyc_output/
+junit.xml
+test-results/
+
+# =============================================================================
+# IDE and Editor Files
+# =============================================================================
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# =============================================================================
+# Operating System Files
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Package Manager Files
+# =============================================================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# =============================================================================
+# Docker
+# =============================================================================
+.dockerignore
+docker-compose.override.yml
+docker-compose.local.yml
+
+# =============================================================================
+# Database
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+database/
+data/
+pgdata/
+
+# =============================================================================
+# Temporary Files
+# =============================================================================
+tmp/
+temp/
+.tmp/
+.temp/
+*.tmp
+*.temp
+
+# =============================================================================
+# Backup Files
+# =============================================================================
+*.bak
+*.backup
+backup/
+backups/
+*.old
+
+# =============================================================================
+# n8n Specific
+# =============================================================================
+.n8n/
+n8n-data/
+workflows/
+credentials/
+executions/
+
+# =============================================================================
+# 3CX Specific
+# =============================================================================
+3cx-data/
+call-recordings/
+audio-files/
+prompts/
+*.wav
+*.mp3
+*.ogg
+
+# CDR files
+*.cdr
+call-logs/
+
+# =============================================================================
+# Testing
+# =============================================================================
+test-results/
+test-reports/
+mock-data/
+fixtures/
+stubs/
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# =============================================================================
+# Documentation
+# =============================================================================
+docs/api/
+docs/build/
+site/
+
+# =============================================================================
+# Cache Directories
+# =============================================================================
+.cache/
+.parcel-cache/
+.sass-cache/
+.eslintcache
+.stylelintcache
+
+# =============================================================================
+# Runtime
+# =============================================================================
+.pm2/
+ecosystem.config.js
+
+# =============================================================================
+# Kubernetes
+# =============================================================================
+*.kubeconfig
+k8s-secrets/
+helm-values.local.yaml
+
+# =============================================================================
+# Terraform
+# =============================================================================
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# =============================================================================
+# Monitoring and Metrics
+# =============================================================================
+metrics/
+prometheus-data/
+grafana-data/
+
+# =============================================================================
+# SSL Certificates
+# =============================================================================
+ssl/
+certificates/
+certs/
+
+# =============================================================================
+# Development Tools
+# =============================================================================
+.tscache/
+.eslintrc.local.js
+.prettierrc.local
+.editorconfig.local
+
+# =============================================================================
+# CI/CD
+# =============================================================================
+.github/workflows/*.local.yml
+jenkins/
+.circleci/config.local.yml
+
+# =============================================================================
+# Miscellaneous
+# =============================================================================
+.DS_STORE
+.vscode/
+.history/
+*.orig
+*.rej
+.terraform.lock.hcl
+
+# Sentry
+.sentryclirc
+
+# =============================================================================
+# Custom Project Files
+# =============================================================================
+
+# Add your custom ignore patterns below
+# Example:
+# custom-scripts/
+# private-configs/
+# local-development/

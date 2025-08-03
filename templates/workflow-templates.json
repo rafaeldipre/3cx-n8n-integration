@@ -1,0 +1,1141 @@
+{
+  "3cx_n8n_workflow_templates": {
+    "version": "2.0.0",
+    "description": "Pre-built workflow templates for 3CX n8n integration covering hybrid use cases",
+    "templates": [
+      {
+        "id": "basic_call_handler",
+        "name": "Basic Call Handler",
+        "description": "Handles incoming calls with greeting, menu, and routing",
+        "category": "call_control",
+        "difficulty": "beginner",
+        "use_case": "direct_control",
+        "workflow": {
+          "nodes": [
+            {
+              "parameters": {
+                "extension": "999",
+                "callTypes": ["inbound", "internal"],
+                "autoAnswer": true,
+                "timeout": 30
+              },
+              "type": "3CXCallReceiver",
+              "position": [180, 200],
+              "id": "incoming_call"
+            },
+            {
+              "parameters": {
+                "operation": "answerCall",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "timeout": 10
+              },
+              "type": "3CXCallControl",
+              "position": [380, 200],
+              "id": "answer_call"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "audioFile": "/prompts/welcome.wav",
+                "interruptible": true
+              },
+              "type": "3CXCallControl",
+              "position": [580, 200],
+              "id": "play_greeting"
+            },
+            {
+              "parameters": {
+                "operation": "collectDTMF",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "prompt": "/prompts/main-menu.wav",
+                "maxDigits": 1,
+                "timeout": 10,
+                "retries": 3
+              },
+              "type": "3CXCallControl",
+              "position": [780, 200],
+              "id": "collect_menu_choice"
+            },
+            {
+              "parameters": {
+                "mode": "expression",
+                "output": "={{ parseInt($json.dtmfInput) }}"
+              },
+              "type": "Switch",
+              "position": [980, 200],
+              "id": "route_choice"
+            },
+            {
+              "parameters": {
+                "operation": "transferCall",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "targetType": "extension",
+                "target": "101",
+                "transferType": "blind"
+              },
+              "type": "3CXCallControl",
+              "position": [1180, 100],
+              "id": "transfer_to_sales"
+            },
+            {
+              "parameters": {
+                "operation": "transferCall",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "targetType": "extension",
+                "target": "102",
+                "transferType": "blind"
+              },
+              "type": "3CXCallControl",
+              "position": [1180, 200],
+              "id": "transfer_to_support"
+            },
+            {
+              "parameters": {
+                "operation": "transferCall",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "targetType": "extension",
+                "target": "100",
+                "transferType": "blind"
+              },
+              "type": "3CXCallControl",
+              "position": [1180, 300],
+              "id": "transfer_to_operator"
+            }
+          ],
+          "connections": {
+            "incoming_call": {
+              "main": [["answer_call"]]
+            },
+            "answer_call": {
+              "main": [["play_greeting"]]
+            },
+            "play_greeting": {
+              "main": [["collect_menu_choice"]]
+            },
+            "collect_menu_choice": {
+              "main": [["route_choice"]]
+            },
+            "route_choice": {
+              "main": [
+                ["transfer_to_sales"],
+                ["transfer_to_support"],
+                ["transfer_to_operator"]
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "smart_ivr_system",
+        "name": "Smart IVR System",
+        "description": "Advanced IVR with database lookup and intelligent routing",
+        "category": "ivr",
+        "difficulty": "intermediate",
+        "use_case": "hybrid",
+        "workflow": {
+          "nodes": [
+            {
+              "parameters": {
+                "extension": "999",
+                "callTypes": ["inbound"],
+                "autoAnswer": true
+              },
+              "type": "3CXCallReceiver",
+              "position": [180, 200],
+              "id": "incoming_call"
+            },
+            {
+              "parameters": {
+                "operation": "answerCall",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}"
+              },
+              "type": "3CXCallControl",
+              "position": [380, 200],
+              "id": "answer_call"
+            },
+            {
+              "parameters": {
+                "operation": "getCallerInfo",
+                "phoneNumber": "={{ $node[\"incoming_call\"].json[\"fromNumber\"] }}"
+              },
+              "type": "MySQL",
+              "position": [580, 200],
+              "id": "lookup_caller"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "boolean": [
+                    {
+                      "value1": "={{ $json.customer_type }}",
+                      "value2": "VIP"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [780, 200],
+              "id": "check_vip_status"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "audioFile": "/prompts/vip-welcome.wav"
+              },
+              "type": "3CXCallControl",
+              "position": [980, 100],
+              "id": "play_vip_greeting"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "audioFile": "/prompts/standard-welcome.wav"
+              },
+              "type": "3CXCallControl",
+              "position": [980, 300],
+              "id": "play_standard_greeting"
+            },
+            {
+              "parameters": {
+                "operation": "collectDTMF",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "prompt": "/prompts/smart-menu.wav",
+                "maxDigits": 2,
+                "timeout": 15
+              },
+              "type": "3CXCallControl",
+              "position": [1180, 200],
+              "id": "collect_advanced_choice"
+            },
+            {
+              "parameters": {
+                "jsCode": "const choice = parseInt(items[0].json.dtmfInput);\nconst customerType = items[0].json.customer_type || 'standard';\n\nlet routing = {\n  destination: '',\n  priority: 'normal'\n};\n\nswitch(choice) {\n  case 11: // Sales - New Customer\n    routing.destination = customerType === 'VIP' ? '201' : '101';\n    routing.priority = customerType === 'VIP' ? 'high' : 'normal';\n    break;\n  case 12: // Sales - Existing Customer\n    routing.destination = '102';\n    routing.priority = 'normal';\n    break;\n  case 21: // Technical Support\n    routing.destination = customerType === 'VIP' ? '301' : '201';\n    routing.priority = customerType === 'VIP' ? 'high' : 'normal';\n    break;\n  case 22: // Billing Support\n    routing.destination = '202';\n    routing.priority = 'normal';\n    break;\n  case 0: // Operator\n    routing.destination = '100';\n    routing.priority = 'high';\n    break;\n  default:\n    routing.destination = '100';\n    routing.priority = 'normal';\n}\n\nreturn [{ json: routing }];"
+              },
+              "type": "Code",
+              "position": [1380, 200],
+              "id": "intelligent_routing"
+            },
+            {
+              "parameters": {
+                "operation": "transferCall",
+                "callId": "={{ $node[\"incoming_call\"].json[\"callId\"] }}",
+                "targetType": "extension",
+                "target": "={{ $json.destination }}",
+                "transferType": "attended",
+                "priority": "={{ $json.priority }}"
+              },
+              "type": "3CXCallControl",
+              "position": [1580, 200],
+              "id": "execute_transfer"
+            }
+          ],
+          "connections": {
+            "incoming_call": {
+              "main": [["answer_call"]]
+            },
+            "answer_call": {
+              "main": [["lookup_caller"]]
+            },
+            "lookup_caller": {
+              "main": [["check_vip_status"]]
+            },
+            "check_vip_status": {
+              "main": [
+                ["play_vip_greeting"],
+                ["play_standard_greeting"]
+              ]
+            },
+            "play_vip_greeting": {
+              "main": [["collect_advanced_choice"]]
+            },
+            "play_standard_greeting": {
+              "main": [["collect_advanced_choice"]]
+            },
+            "collect_advanced_choice": {
+              "main": [["intelligent_routing"]]
+            },
+            "intelligent_routing": {
+              "main": [["execute_transfer"]]
+            }
+          }
+        }
+      },
+      {
+        "id": "call_analytics_dashboard",
+        "name": "Real-time Call Analytics",
+        "description": "Monitor all calls and generate analytics dashboards",
+        "category": "monitoring",
+        "difficulty": "intermediate",
+        "use_case": "monitoring",
+        "workflow": {
+          "nodes": [
+            {
+              "parameters": {
+                "eventTypes": ["call_started", "call_answered", "call_ended"],
+                "filters": {
+                  "extensions": ["*"],
+                  "directions": ["inbound", "outbound", "internal"]
+                },
+                "batchMode": false
+              },
+              "type": "3CXCallMonitor",
+              "position": [180, 200],
+              "id": "call_events"
+            },
+            {
+              "parameters": {
+                "jsCode": "const event = items[0].json;\nconst timestamp = new Date(event.timestamp);\n\n// Calculate metrics\nlet metrics = {\n  timestamp: timestamp,\n  event_type: event.eventType,\n  call_id: event.callId,\n  extension: event.extension,\n  direction: event.data.direction,\n  from_number: event.data.fromNumber,\n  to_number: event.data.toNumber,\n  duration: event.data.duration || 0,\n  queue_id: event.data.queueId,\n  agent_id: event.data.agentId,\n  hour: timestamp.getHours(),\n  day_of_week: timestamp.getDay(),\n  date: timestamp.toISOString().split('T')[0]\n};\n\n// Add specific metrics based on event type\nif (event.eventType === 'call_started') {\n  metrics.metric_type = 'call_volume';\n  metrics.value = 1;\n} else if (event.eventType === 'call_answered') {\n  metrics.metric_type = 'answer_rate';\n  metrics.value = 1;\n  metrics.response_time = event.data.responseTime || 0;\n} else if (event.eventType === 'call_ended') {\n  metrics.metric_type = 'call_completion';\n  metrics.value = 1;\n  metrics.talk_time = event.data.talkTime || 0;\n  metrics.call_result = event.data.result || 'unknown';\n}\n\nreturn [{ json: metrics }];"
+              },
+              "type": "Code",
+              "position": [380, 200],
+              "id": "process_metrics"
+            },
+            {
+              "parameters": {
+                "operation": "insert",
+                "table": "call_metrics",
+                "columns": "timestamp,event_type,call_id,extension,direction,from_number,to_number,duration,queue_id,agent_id,hour,day_of_week,date,metric_type,value,response_time,talk_time,call_result",
+                "values": "={{ $json.timestamp }},={{ $json.event_type }},={{ $json.call_id }},={{ $json.extension }},={{ $json.direction }},={{ $json.from_number }},={{ $json.to_number }},={{ $json.duration }},={{ $json.queue_id }},={{ $json.agent_id }},={{ $json.hour }},={{ $json.day_of_week }},={{ $json.date }},={{ $json.metric_type }},={{ $json.value }},={{ $json.response_time }},={{ $json.talk_time }},={{ $json.call_result }}"
+              },
+              "type": "MySQL",
+              "position": [580, 200],
+              "id": "store_metrics"
+            },
+            {
+              "parameters": {
+                "url": "https://analytics.company.com/api/metrics",
+                "method": "POST",
+                "headers": {
+                  "Content-Type": "application/json",
+                  "Authorization": "Bearer {{ $env.ANALYTICS_API_TOKEN }}"
+                },
+                "body": {
+                  "source": "3cx_n8n",
+                  "metrics": "={{ $json }}"
+                }
+              },
+              "type": "HTTP Request",
+              "position": [780, 200],
+              "id": "send_to_dashboard"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "string": [
+                    {
+                      "value1": "={{ $json.metric_type }}",
+                      "value2": "call_volume"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [980, 200],
+              "id": "check_high_volume"
+            },
+            {
+              "parameters": {
+                "operation": "aggregate",
+                "query": "SELECT COUNT(*) as call_count FROM call_metrics WHERE timestamp >= DATE_SUB(NOW(), INTERVAL 5 MINUTE) AND metric_type = 'call_volume'"
+              },
+              "type": "MySQL",
+              "position": [1180, 100],
+              "id": "check_volume_threshold"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "number": [
+                    {
+                      "value1": "={{ $json.call_count }}",
+                      "operation": "larger",
+                      "value2": 50
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [1380, 100],
+              "id": "volume_alert_threshold"
+            },
+            {
+              "parameters": {
+                "channel": "#alerts",
+                "text": ":warning: High call volume detected: {{ $json.call_count }} calls in the last 5 minutes",
+                "username": "3CX Monitor"
+              },
+              "type": "Slack",
+              "position": [1580, 100],
+              "id": "send_volume_alert"
+            }
+          ],
+          "connections": {
+            "call_events": {
+              "main": [["process_metrics"]]
+            },
+            "process_metrics": {
+              "main": [["store_metrics"]]
+            },
+            "store_metrics": {
+              "main": [["send_to_dashboard"]]
+            },
+            "send_to_dashboard": {
+              "main": [["check_high_volume"]]
+            },
+            "check_high_volume": {
+              "main": [
+                ["check_volume_threshold"],
+                []
+              ]
+            },
+            "check_volume_threshold": {
+              "main": [["volume_alert_threshold"]]
+            },
+            "volume_alert_threshold": {
+              "main": [
+                ["send_volume_alert"],
+                []
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "customer_callback_system",
+        "name": "Intelligent Callback System",
+        "description": "Handle overflow calls with automated callback scheduling",
+        "category": "customer_service",
+        "difficulty": "advanced",
+        "use_case": "hybrid",
+        "workflow": {
+          "nodes": [
+            {
+              "parameters": {
+                "eventTypes": ["queue_call_waiting"],
+                "filters": {
+                  "queueIds": ["queue-support", "queue-sales"]
+                }
+              },
+              "type": "3CXCallMonitor",
+              "position": [180, 200],
+              "id": "queue_events"
+            },
+            {
+              "parameters": {
+                "operation": "getQueueStats",
+                "queueId": "={{ $json.data.queueId }}",
+                "metrics": ["waitingCalls", "averageWaitTime", "availableAgents"]
+              },
+              "type": "3CXCallData",
+              "position": [380, 200],
+              "id": "get_queue_stats"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "boolean": [
+                    {
+                      "value1": "={{ $json.averageWaitTime > 300 && $json.availableAgents === 0 }}",
+                      "value2": true
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [580, 200],
+              "id": "check_overflow_condition"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $node[\"queue_events\"].json[\"callId\"] }}",
+                "audioFile": "/prompts/callback-offer.wav",
+                "interruptible": true
+              },
+              "type": "3CXCallControl",
+              "position": [780, 100],
+              "id": "offer_callback"
+            },
+            {
+              "parameters": {
+                "operation": "collectDTMF",
+                "callId": "={{ $node[\"queue_events\"].json[\"callId\"] }}",
+                "prompt": "/prompts/press-1-callback.wav",
+                "maxDigits": 1,
+                "timeout": 10,
+                "terminators": ["#"]
+              },
+              "type": "3CXCallControl",
+              "position": [980, 100],
+              "id": "collect_callback_choice"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "string": [
+                    {
+                      "value1": "={{ $json.dtmfInput }}",
+                      "value2": "1"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [1180, 100],
+              "id": "check_callback_acceptance"
+            },
+            {
+              "parameters": {
+                "operation": "collectDTMF",
+                "callId": "={{ $node[\"queue_events\"].json[\"callId\"] }}",
+                "prompt": "/prompts/enter-callback-number.wav",
+                "maxDigits": 10,
+                "timeout": 30,
+                "terminators": ["#"]
+              },
+              "type": "3CXCallControl",
+              "position": [1380, 50],
+              "id": "collect_callback_number"
+            },
+            {
+              "parameters": {
+                "jsCode": "const queueId = items[0].json.queueId;\nconst callbackNumber = items[0].json.dtmfInput;\nconst now = new Date();\n\n// Calculate callback time based on queue and time of day\nlet callbackTime = new Date(now);\n\nif (queueId === 'queue-support') {\n  // Support queue - callback within 2 hours during business hours\n  if (now.getHours() >= 17 || now.getHours() < 8) {\n    // After hours - callback next business day at 9 AM\n    callbackTime.setDate(now.getDate() + 1);\n    callbackTime.setHours(9, 0, 0, 0);\n  } else {\n    // Business hours - callback in 2 hours\n    callbackTime.setHours(now.getHours() + 2);\n  }\n} else {\n  // Sales queue - callback within 1 hour\n  callbackTime.setHours(now.getHours() + 1);\n}\n\nreturn [{\n  json: {\n    callback_number: callbackNumber,\n    callback_time: callbackTime.toISOString(),\n    queue_id: queueId,\n    original_call_id: items[0].json.callId,\n    priority: queueId === 'queue-support' ? 'high' : 'normal',\n    status: 'scheduled'\n  }\n}];"
+              },
+              "type": "Code",
+              "position": [1580, 50],
+              "id": "calculate_callback_time"
+            },
+            {
+              "parameters": {
+                "operation": "insert",
+                "table": "callback_requests",
+                "columns": "callback_number,callback_time,queue_id,original_call_id,priority,status,created_at",
+                "values": "={{ $json.callback_number }},={{ $json.callback_time }},={{ $json.queue_id }},={{ $json.original_call_id }},={{ $json.priority }},={{ $json.status }},NOW()"
+              },
+              "type": "MySQL",
+              "position": [1780, 50],
+              "id": "schedule_callback"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $node[\"queue_events\"].json[\"callId\"] }}",
+                "audioFile": "/prompts/callback-scheduled.wav"
+              },
+              "type": "3CXCallControl",
+              "position": [1980, 50],
+              "id": "confirm_callback"
+            },
+            {
+              "parameters": {
+                "to": "={{ $json.callback_number }}",
+                "message": "Your callback has been scheduled for {{ $json.callback_time }}. We'll call you back shortly. Reply STOP to cancel."
+              },
+              "type": "SMS",
+              "position": [1780, 150],
+              "id": "send_confirmation_sms"
+            },
+            {
+              "parameters": {
+                "operation": "hangupCall",
+                "callId": "={{ $node[\"queue_events\"].json[\"callId\"] }}"
+              },
+              "type": "3CXCallControl",
+              "position": [2180, 50],
+              "id": "end_call"
+            },
+            {
+              "parameters": {
+                "operation": "transferCall",
+                "callId": "={{ $node[\"queue_events\"].json[\"callId\"] }}",
+                "targetType": "queue",
+                "target": "={{ $node[\"queue_events\"].json[\"data\"][\"queueId\"] }}",
+                "transferType": "queue"
+              },
+              "type": "3CXCallControl",
+              "position": [1380, 150],
+              "id": "return_to_queue"
+            }
+          ],
+          "connections": {
+            "queue_events": {
+              "main": [["get_queue_stats"]]
+            },
+            "get_queue_stats": {
+              "main": [["check_overflow_condition"]]
+            },
+            "check_overflow_condition": {
+              "main": [
+                ["offer_callback"],
+                []
+              ]
+            },
+            "offer_callback": {
+              "main": [["collect_callback_choice"]]
+            },
+            "collect_callback_choice": {
+              "main": [["check_callback_acceptance"]]
+            },
+            "check_callback_acceptance": {
+              "main": [
+                ["collect_callback_number"],
+                ["return_to_queue"]
+              ]
+            },
+            "collect_callback_number": {
+              "main": [["calculate_callback_time"]]
+            },
+            "calculate_callback_time": {
+              "main": [["schedule_callback", "send_confirmation_sms"]]
+            },
+            "schedule_callback": {
+              "main": [["confirm_callback"]]
+            },
+            "send_confirmation_sms": {
+              "main": [[]]
+            },
+            "confirm_callback": {
+              "main": [["end_call"]]
+            }
+          }
+        }
+      },
+      {
+        "id": "automated_survey_system",
+        "name": "Post-Call Survey System",
+        "description": "Automatically conduct customer satisfaction surveys after calls",
+        "category": "customer_experience",
+        "difficulty": "intermediate",
+        "use_case": "hybrid",
+        "workflow": {
+          "nodes": [
+            {
+              "parameters": {
+                "eventTypes": ["call_ended"],
+                "filters": {
+                  "directions": ["inbound"],
+                  "minDuration": 60,
+                  "statuses": ["completed"]
+                }
+              },
+              "type": "3CXCallMonitor",
+              "position": [180, 200],
+              "id": "completed_calls"
+            },
+            {
+              "parameters": {
+                "jsCode": "const callData = items[0].json;\nconst duration = callData.data.duration || 0;\nconst extension = callData.extension;\n\n// Determine if survey should be conducted\nlet shouldSurvey = false;\nlet surveyType = 'standard';\n\n// Survey criteria\nif (duration >= 300) { // 5+ minute calls\n  shouldSurvey = true;\n  \n  // Determine survey type based on extension\n  if (['101', '102', '103'].includes(extension)) {\n    surveyType = 'sales';\n  } else if (['201', '202', '203'].includes(extension)) {\n    surveyType = 'support';\n  } else {\n    surveyType = 'general';\n  }\n}\n\nreturn [{\n  json: {\n    ...callData,\n    should_survey: shouldSurvey,\n    survey_type: surveyType,\n    survey_delay: 300 // 5 minutes delay\n  }\n}];"
+              },
+              "type": "Code",
+              "position": [380, 200],
+              "id": "determine_survey_eligibility"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "boolean": [
+                    {
+                      "value1": "={{ $json.should_survey }}",
+                      "value2": true
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [580, 200],
+              "id": "check_survey_eligibility"
+            },
+            {
+              "parameters": {
+                "amount": "={{ $json.survey_delay }}",
+                "unit": "seconds"
+              },
+              "type": "Wait",
+              "position": [780, 100],
+              "id": "wait_before_survey"
+            },
+            {
+              "parameters": {
+                "operation": "makeOutboundCall",
+                "toNumber": "={{ $json.data.fromNumber }}",
+                "fromExtension": "900",
+                "autoAnswer": false,
+                "timeout": 30
+              },
+              "type": "3CXCallControl",
+              "position": [980, 100],
+              "id": "initiate_survey_call"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "string": [
+                    {
+                      "value1": "={{ $json.status }}",
+                      "value2": "answered"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [1180, 100],
+              "id": "check_call_answered"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $json.callId }}",
+                "audioFile": "/prompts/survey-intro.wav"
+              },
+              "type": "3CXCallControl",
+              "position": [1380, 50],
+              "id": "play_survey_intro"
+            },
+            {
+              "parameters": {
+                "operation": "collectDTMF",
+                "callId": "={{ $json.callId }}",
+                "prompt": "/prompts/rate-overall-satisfaction.wav",
+                "maxDigits": 1,
+                "timeout": 15,
+                "validDigits": ["1", "2", "3", "4", "5"]
+              },
+              "type": "3CXCallControl",
+              "position": [1580, 50],
+              "id": "collect_satisfaction_rating"
+            },
+            {
+              "parameters": {
+                "operation": "collectDTMF",
+                "callId": "={{ $json.callId }}",
+                "prompt": "/prompts/recommend-rating.wav",
+                "maxDigits": 2,
+                "timeout": 15,
+                "validDigits": ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+              },
+              "type": "3CXCallControl",
+              "position": [1780, 50],
+              "id": "collect_nps_score"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "string": [
+                    {
+                      "value1": "={{ $node[\"determine_survey_eligibility\"].json[\"survey_type\"] }}",
+                      "value2": "support"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [1980, 50],
+              "id": "check_support_survey"
+            },
+            {
+              "parameters": {
+                "operation": "collectDTMF",
+                "callId": "={{ $json.callId }}",
+                "prompt": "/prompts/issue-resolved.wav",
+                "maxDigits": 1,
+                "timeout": 15,
+                "validDigits": ["1", "2"]
+              },
+              "type": "3CXCallControl",
+              "position": [2180, 25],
+              "id": "collect_resolution_status"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $json.callId }}",
+                "audioFile": "/prompts/survey-thank-you.wav"
+              },
+              "type": "3CXCallControl",
+              "position": [2380, 50],
+              "id": "thank_customer"
+            },
+            {
+              "parameters": {
+                "jsCode": "const originalCall = items[0].json;\nconst satisfaction = items[1].json.dtmfInput;\nconst nps = items[2].json.dtmfInput;\nconst resolution = items[3] ? items[3].json.dtmfInput : null;\n\n// Calculate survey results\nconst surveyResults = {\n  original_call_id: originalCall.callId,\n  customer_number: originalCall.data.fromNumber,\n  agent_extension: originalCall.extension,\n  survey_type: originalCall.survey_type,\n  satisfaction_score: parseInt(satisfaction),\n  nps_score: parseInt(nps),\n  issue_resolved: resolution ? (resolution === '1' ? 'yes' : 'no') : null,\n  survey_date: new Date().toISOString(),\n  call_duration: originalCall.data.duration,\n  department: originalCall.extension.startsWith('1') ? 'sales' : 'support'\n};\n\n// Determine customer sentiment\nif (surveyResults.satisfaction_score >= 4 && surveyResults.nps_score >= 8) {\n  surveyResults.sentiment = 'positive';\n} else if (surveyResults.satisfaction_score <= 2 || surveyResults.nps_score <= 6) {\n  surveyResults.sentiment = 'negative';\n} else {\n  surveyResults.sentiment = 'neutral';\n}\n\nreturn [{ json: surveyResults }];"
+              },
+              "type": "Code",
+              "position": [2580, 50],
+              "id": "process_survey_results"
+            },
+            {
+              "parameters": {
+                "operation": "insert",
+                "table": "customer_surveys",
+                "columns": "original_call_id,customer_number,agent_extension,survey_type,satisfaction_score,nps_score,issue_resolved,survey_date,call_duration,department,sentiment",
+                "values": "={{ $json.original_call_id }},={{ $json.customer_number }},={{ $json.agent_extension }},={{ $json.survey_type }},={{ $json.satisfaction_score }},={{ $json.nps_score }},={{ $json.issue_resolved }},={{ $json.survey_date }},={{ $json.call_duration }},={{ $json.department }},={{ $json.sentiment }}"
+              },
+              "type": "MySQL",
+              "position": [2780, 50],
+              "id": "store_survey_results"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "string": [
+                    {
+                      "value1": "={{ $json.sentiment }}",
+                      "value2": "negative"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [2980, 50],
+              "id": "check_negative_feedback"
+            },
+            {
+              "parameters": {
+                "to": "manager@company.com",
+                "subject": "Negative Customer Feedback Alert",
+                "body": "A customer has provided negative feedback:\n\nCall ID: {{ $json.original_call_id }}\nCustomer: {{ $json.customer_number }}\nAgent: {{ $json.agent_extension }}\nSatisfaction: {{ $json.satisfaction_score }}/5\nNPS: {{ $json.nps_score }}/10\n\nPlease follow up promptly."
+              },
+              "type": "Email",
+              "position": [3180, 25],
+              "id": "send_negative_feedback_alert"
+            },
+            {
+              "parameters": {
+                "operation": "hangupCall",
+                "callId": "={{ $node[\"initiate_survey_call\"].json[\"callId\"] }}"
+              },
+              "type": "3CXCallControl",
+              "position": [2580, 150],
+              "id": "end_survey_call"
+            }
+          ],
+          "connections": {
+            "completed_calls": {
+              "main": [["determine_survey_eligibility"]]
+            },
+            "determine_survey_eligibility": {
+              "main": [["check_survey_eligibility"]]
+            },
+            "check_survey_eligibility": {
+              "main": [
+                ["wait_before_survey"],
+                []
+              ]
+            },
+            "wait_before_survey": {
+              "main": [["initiate_survey_call"]]
+            },
+            "initiate_survey_call": {
+              "main": [["check_call_answered"]]
+            },
+            "check_call_answered": {
+              "main": [
+                ["play_survey_intro"],
+                []
+              ]
+            },
+            "play_survey_intro": {
+              "main": [["collect_satisfaction_rating"]]
+            },
+            "collect_satisfaction_rating": {
+              "main": [["collect_nps_score"]]
+            },
+            "collect_nps_score": {
+              "main": [["check_support_survey"]]
+            },
+            "check_support_survey": {
+              "main": [
+                ["collect_resolution_status"],
+                ["thank_customer"]
+              ]
+            },
+            "collect_resolution_status": {
+              "main": [["thank_customer"]]
+            },
+            "thank_customer": {
+              "main": [["process_survey_results", "end_survey_call"]]
+            },
+            "process_survey_results": {
+              "main": [["store_survey_results"]]
+            },
+            "store_survey_results": {
+              "main": [["check_negative_feedback"]]
+            },
+            "check_negative_feedback": {
+              "main": [
+                ["send_negative_feedback_alert"],
+                []
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": "emergency_escalation_system",
+        "name": "Emergency Call Escalation",
+        "description": "Automatic escalation system for emergency or high-priority calls",
+        "category": "emergency",
+        "difficulty": "advanced",
+        "use_case": "hybrid",
+        "workflow": {
+          "nodes": [
+            {
+              "parameters": {
+                "eventTypes": ["call_started"],
+                "filters": {
+                  "directions": ["inbound"],
+                  "phoneNumberPatterns": ["911", ".*emergency.*", ".*urgent.*"]
+                }
+              },
+              "type": "3CXCallMonitor",
+              "position": [180, 200],
+              "id": "emergency_calls"
+            },
+            {
+              "parameters": {
+                "jsCode": "const callData = items[0].json;\nconst fromNumber = callData.data.fromNumber;\nconst callerInfo = callData.data.callerInfo || {};\n\n// Determine emergency level\nlet emergencyLevel = 'standard';\nlet priority = 1;\nlet escalationList = [];\n\n// Check for VIP customers\nif (callerInfo.customerType === 'VIP' || callerInfo.accountValue > 100000) {\n  emergencyLevel = 'high';\n  priority = 2;\n  escalationList = ['manager@company.com', '+1234567890'];\n}\n\n// Check for enterprise customers\nif (callerInfo.customerType === 'enterprise') {\n  emergencyLevel = 'critical';\n  priority = 3;\n  escalationList = ['ceo@company.com', 'cto@company.com', '+1234567890', '+0987654321'];\n}\n\n// Check for after-hours calls\nconst currentHour = new Date().getHours();\nif (currentHour < 8 || currentHour > 17) {\n  priority = Math.max(priority, 2);\n  escalationList.push('oncall@company.com');\n}\n\nreturn [{\n  json: {\n    ...callData,\n    emergency_level: emergencyLevel,\n    priority: priority,\n    escalation_list: escalationList,\n    response_time_target: priority * 30 // seconds\n  }\n}];"
+              },
+              "type": "Code",
+              "position": [380, 200],
+              "id": "assess_emergency_level"
+            },
+            {
+              "parameters": {
+                "operation": "answerCall",
+                "callId": "={{ $json.callId }}",
+                "priority": "high"
+              },
+              "type": "3CXCallControl",
+              "position": [580, 200],
+              "id": "immediate_answer"
+            },
+            {
+              "parameters": {
+                "operation": "playAudio",
+                "callId": "={{ $json.callId }}",
+                "audioFile": "/prompts/emergency-acknowledgment.wav"
+              },
+              "type": "3CXCallControl",
+              "position": [780, 200],
+              "id": "acknowledge_emergency"
+            },
+            {
+              "parameters": {
+                "jsCode": "// Trigger immediate escalation notifications\nconst emergencyData = items[0].json;\nconst notifications = [];\n\nfor (const contact of emergencyData.escalation_list) {\n  if (contact.includes('@')) {\n    // Email notification\n    notifications.push({\n      type: 'email',\n      recipient: contact,\n      subject: `EMERGENCY CALL - Priority ${emergencyData.priority}`,\n      body: `Emergency call received:\\n\\nCaller: ${emergencyData.data.fromNumber}\\nLevel: ${emergencyData.emergency_level}\\nCall ID: ${emergencyData.callId}\\nTime: ${new Date().toISOString()}\\n\\nImmediate attention required.`\n    });\n  } else if (contact.startsWith('+')) {\n    // SMS notification\n    notifications.push({\n      type: 'sms',\n      recipient: contact,\n      message: `EMERGENCY: Priority ${emergencyData.priority} call from ${emergencyData.data.fromNumber}. Call ID: ${emergencyData.callId}`\n    });\n  }\n}\n\nreturn notifications.map(notification => ({ json: notification }));"
+              },
+              "type": "Code",
+              "position": [980, 200],
+              "id": "prepare_escalation_notifications"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "string": [
+                    {
+                      "value1": "={{ $json.type }}",
+                      "value2": "email"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [1180, 200],
+              "id": "check_notification_type"
+            },
+            {
+              "parameters": {
+                "to": "={{ $json.recipient }}",
+                "subject": "={{ $json.subject }}",
+                "body": "={{ $json.body }}"
+              },
+              "type": "Email",
+              "position": [1380, 100],
+              "id": "send_email_alert"
+            },
+            {
+              "parameters": {
+                "to": "={{ $json.recipient }}",
+                "message": "={{ $json.message }}"
+              },
+              "type": "SMS",
+              "position": [1380, 300],
+              "id": "send_sms_alert"
+            },
+            {
+              "parameters": {
+                "operation": "findAvailableAgent",
+                "criteria": {
+                  "skills": ["emergency", "priority"],
+                  "availability": "immediate",
+                  "maxWaitTime": 30
+                }
+              },
+              "type": "3CXCallData",
+              "position": [980, 400],
+              "id": "find_emergency_agent"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "boolean": [
+                    {
+                      "value1": "={{ $json.agent_found }}",
+                      "value2": true
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [1180, 400],
+              "id": "check_agent_availability"
+            },
+            {
+              "parameters": {
+                "operation": "transferCall",
+                "callId": "={{ $node[\"emergency_calls\"].json[\"callId\"] }}",
+                "targetType": "extension",
+                "target": "={{ $json.agent_extension }}",
+                "transferType": "attended",
+                "priority": "emergency"
+              },
+              "type": "3CXCallControl",
+              "position": [1380, 350],
+              "id": "transfer_to_emergency_agent"
+            },
+            {
+              "parameters": {
+                "operation": "createConference",
+                "conferenceId": "emergency-{{ $node[\"emergency_calls\"].json[\"callId\"] }}",
+                "participants": [
+                  { "callId": "={{ $node[\"emergency_calls\"].json[\"callId\"] }}", "role": "customer" },
+                  { "extension": "100", "role": "supervisor" },
+                  { "extension": "911", "role": "emergency_contact" }
+                ],
+                "settings": {
+                  "recordConference": true,
+                  "emergencyMode": true
+                }
+              },
+              "type": "3CXCallControl",
+              "position": [1380, 450],
+              "id": "create_emergency_conference"
+            },
+            {
+              "parameters": {
+                "amount": "={{ $node[\"assess_emergency_level\"].json[\"response_time_target\"] }}",
+                "unit": "seconds"
+              },
+              "type": "Wait",
+              "position": [1580, 300],
+              "id": "wait_for_response"
+            },
+            {
+              "parameters": {
+                "operation": "getCallStatus",
+                "callId": "={{ $node[\"emergency_calls\"].json[\"callId\"] }}"
+              },
+              "type": "3CXCallData",
+              "position": [1780, 300],
+              "id": "check_call_status"
+            },
+            {
+              "parameters": {
+                "conditions": {
+                  "string": [
+                    {
+                      "value1": "={{ $json.status }}",
+                      "value2": "active"
+                    }
+                  ]
+                }
+              },
+              "type": "If",
+              "position": [1980, 300],
+              "id": "check_still_active"
+            },
+            {
+              "parameters": {
+                "to": "escalation@company.com",
+                "subject": "URGENT: Emergency Call Not Handled",
+                "body": "Emergency call {{ $node[\"emergency_calls\"].json[\"callId\"] }} from {{ $node[\"emergency_calls\"].json[\"data\"][\"fromNumber\"] }} has not been handled within the target response time. Immediate escalation required."
+              },
+              "type": "Email",
+              "position": [2180, 250],
+              "id": "send_escalation_alert"
+            },
+            {
+              "parameters": {
+                "operation": "insert",
+                "table": "emergency_calls",
+                "columns": "call_id,caller_number,emergency_level,priority,escalation_list,response_time_target,handled,escalated,timestamp",
+                "values": "={{ $node[\"emergency_calls\"].json[\"callId\"] }},={{ $node[\"emergency_calls\"].json[\"data\"][\"fromNumber\"] }},={{ $node[\"assess_emergency_level\"].json[\"emergency_level\"] }},={{ $node[\"assess_emergency_level\"].json[\"priority\"] }},{{ JSON.stringify($node[\"assess_emergency_level\"].json[\"escalation_list\"]) }},={{ $node[\"assess_emergency_level\"].json[\"response_time_target\"] }},false,true,NOW()"
+              },
+              "type": "MySQL",
+              "position": [2180, 350],
+              "id": "log_emergency_escalation"
+            }
+          ],
+          "connections": {
+            "emergency_calls": {
+              "main": [["assess_emergency_level"]]
+            },
+            "assess_emergency_level": {
+              "main": [["immediate_answer"]]
+            },
+            "immediate_answer": {
+              "main": [["acknowledge_emergency"]]
+            },
+            "acknowledge_emergency": {
+              "main": [["prepare_escalation_notifications", "find_emergency_agent"]]
+            },
+            "prepare_escalation_notifications": {
+              "main": [["check_notification_type"]]
+            },
+            "check_notification_type": {
+              "main": [
+                ["send_email_alert"],
+                ["send_sms_alert"]
+              ]
+            },
+            "send_email_alert": {
+              "main": [["wait_for_response"]]
+            },
+            "send_sms_alert": {
+              "main": [["wait_for_response"]]
+            },
+            "find_emergency_agent": {
+              "main": [["check_agent_availability"]]
+            },
+            "check_agent_availability": {
+              "main": [
+                ["transfer_to_emergency_agent"],
+                ["create_emergency_conference"]
+              ]
+            },
+            "transfer_to_emergency_agent": {
+              "main": [[]]
+            },
+            "create_emergency_conference": {
+              "main": [[]]
+            },
+            "wait_for_response": {
+              "main": [["check_call_status"]]
+            },
+            "check_call_status": {
+              "main": [["check_still_active"]]
+            },
+            "check_still_active": {
+              "main": [
+                ["send_escalation_alert", "log_emergency_escalation"],
+                []
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

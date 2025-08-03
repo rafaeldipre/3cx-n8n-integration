@@ -1,0 +1,279 @@
+version: '3.8'
+
+services:
+  # n8n with 3CX integration
+  n8n-3cx:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    container_name: n8n-3cx-integration
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # n8n Basic Configuration
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin}
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      
+      # Database Configuration (PostgreSQL)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-n8n}
+      
+      # Redis Configuration (for queue mode)
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=6379
+      - QUEUE_BULL_REDIS_DB=0
+      - QUEUE_BULL_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      
+      # Webhook Configuration
+      - WEBHOOK_URL=${WEBHOOK_URL:-http://localhost:5678}
+      
+      # 3CX Integration Configuration
+      - N8N_3CX_LOG_LEVEL=${N8N_3CX_LOG_LEVEL:-info}
+      - N8N_3CX_TIMEOUT=${N8N_3CX_TIMEOUT:-30000}
+      - N8N_3CX_RETRY_ATTEMPTS=${N8N_3CX_RETRY_ATTEMPTS:-3}
+      - N8N_3CX_MAX_CONCURRENT_CALLS=${N8N_3CX_MAX_CONCURRENT_CALLS:-10}
+      
+      # Security
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-your-encryption-key-here}
+      - N8N_USER_MANAGEMENT_JWT_SECRET=${JWT_SECRET:-your-jwt-secret-here}
+      
+      # Performance
+      - N8N_WORKERS=2
+      - N8N_MEMORY_LIMIT=2048
+      
+      # Logging
+      - N8N_LOG_LEVEL=info
+      - N8N_LOG_OUTPUT=console,file
+      - N8N_LOG_FILE_LOCATION=/home/node/.n8n/logs/
+      
+      # Metrics
+      - N8N_METRICS=true
+      - N8N_METRICS_PREFIX=n8n_3cx_
+      
+      # Additional Features
+      - N8N_TEMPLATES_ENABLED=true
+      - N8N_ONBOARDING_FLOW_DISABLED=false
+      - N8N_DISABLE_UI=false
+      
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - n8n_logs:/home/node/.n8n/logs
+      - ./templates:/home/node/.n8n/templates
+      - ./backups:/home/node/.n8n/backups
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: n8n-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-n8n}
+      - POSTGRES_USER=${POSTGRES_USER:-n8n}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-n8n}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-n8n} -d ${POSTGRES_DB:-n8n}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for Queue Management
+  redis:
+    image: redis:7-alpine
+    container_name: n8n-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks:
+      - n8n-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # n8n Worker (for queue mode)
+  n8n-worker:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    container_name: n8n-worker
+    restart: unless-stopped
+    command: n8n worker
+    environment:
+      # Database Configuration
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-n8n}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-n8n}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-n8n}
+      
+      # Redis Configuration
+      - QUEUE_BULL_REDIS_HOST=redis
+      - QUEUE_BULL_REDIS_PORT=6379
+      - QUEUE_BULL_REDIS_DB=0
+      - QUEUE_BULL_REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      
+      # 3CX Configuration
+      - N8N_3CX_LOG_LEVEL=${N8N_3CX_LOG_LEVEL:-info}
+      - N8N_3CX_TIMEOUT=${N8N_3CX_TIMEOUT:-30000}
+      - N8N_3CX_MAX_CONCURRENT_CALLS=${N8N_3CX_MAX_CONCURRENT_CALLS:-10}
+      
+      # Security
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-your-encryption-key-here}
+      
+      # Performance
+      - N8N_WORKERS=2
+      - N8N_MEMORY_LIMIT=2048
+      
+      # Logging
+      - N8N_LOG_LEVEL=info
+      - N8N_LOG_OUTPUT=console
+      
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - n8n-network
+    scale: 2  # Run 2 worker instances
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: n8n-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - n8n-network
+    profiles:
+      - monitoring
+
+  # Grafana for Visualization (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: n8n-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./docker/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - n8n-network
+    profiles:
+      - monitoring
+
+  # nginx Reverse Proxy (optional)
+  nginx:
+    image: nginx:alpine
+    container_name: n8n-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/ssl:/etc/nginx/ssl
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - n8n-3cx
+    networks:
+      - n8n-network
+    profiles:
+      - production
+
+  # Backup Service (optional)
+  backup:
+    image: alpine:latest
+    container_name: n8n-backup
+    restart: "no"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_DB=${POSTGRES_DB:-n8n}
+      - POSTGRES_USER=${POSTGRES_USER:-n8n}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-n8n}
+      - BACKUP_RETENTION_DAYS=30
+    volumes:
+      - n8n_data:/n8n-data:ro
+      - postgres_data:/postgres-data:ro
+      - ./backups:/backups
+      - ./docker/scripts/backup.sh:/backup.sh
+    command: sh -c "chmod +x /backup.sh && /backup.sh"
+    depends_on:
+      - postgres
+      - n8n-3cx
+    networks:
+      - n8n-network
+    profiles:
+      - backup
+
+# Named volumes for data persistence
+volumes:
+  n8n_data:
+    driver: local
+  n8n_logs:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  nginx_logs:
+    driver: local
+
+# Network configuration
+networks:
+  n8n-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
