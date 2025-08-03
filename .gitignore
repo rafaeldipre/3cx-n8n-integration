@@ -34,6 +34,10 @@ out/
 config.local.json
 config.*.local.json
 
+# Claude AI configuration files
+CLAUDE.md
+.claude/
+
 # =============================================================================
 # Credentials and Secrets
 # =============================================================================
